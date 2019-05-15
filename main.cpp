@@ -56,8 +56,8 @@ void content_generator(uint8_t *hash, uint8_t *content, int length) {
         }
 
     }
-    std::cout << hash << std::endl;
-    std::cout << content << std::endl;
+    //std::cout << hash << std::endl;
+    //std::cout << content << std::endl;
 }
 
 void ByteToHexStr(const unsigned char* source, char* dest, int sourceLen) {
@@ -97,12 +97,13 @@ int file_reader(char *path) {
     uint8_t chk_cont[4097];
 
     uint8_t mid_bch[(CONFIG_T * CONFIG_M / 8) + 1];
+    uint8_t mid_content[SEC_LENGTH + 1];
 
     std::string mid_str;
 
     int i;
 
-    char blk_num_str[30];
+    //char blk_num_str[30];
 
     if((fp = fopen(path, "r")) == NULL){
         std::cout<<"Open file error!The file name is: "<<path<<std::endl;
@@ -121,20 +122,7 @@ int file_reader(char *path) {
         memset(sha1_ori, 0, SHA1_LENGTH + 1);
         memset(sha1_result, 0, 2 * SHA1_LENGTH + 1);
 
-        memset(generated_content, 0, READ_LENGTH + 1);
-        content_generator((uint8_t *)sha1_result, generated_content, 2 * SHA1_LENGTH);
-        for(i = 0; i < 8; i++){
-            encode_bch(bch, generated_content + SEC_LENGTH * i, SEC_LENGTH, mid_bch);
-            memcpy(bch_ori + ((CONFIG_T * CONFIG_M / 8) * i), mid_bch, CONFIG_T * CONFIG_M / 8);
 
-        }
-        ByteToHexStr(bch_ori, bch_result, BCH_LENGTH);
-        bch_result[2 * BCH_LENGTH] = '\0';
-        mid_str = bch_result;
-        if(list_bch.find(mid_str) == list_bch.end()){
-            bch_unique_count++;
-            list_bch.insert(mid_str);
-        }
 
         SHA1((unsigned char *)chk_cont, (size_t)4096, (unsigned char *)sha1_ori);
         ByteToHexStr(sha1_ori, sha1_result, SHA1_LENGTH);
@@ -144,10 +132,29 @@ int file_reader(char *path) {
             list_sha1.insert(mid_str);
         }
 
+        memset(generated_content, 0, READ_LENGTH + 1);
+        content_generator((uint8_t *)sha1_result, generated_content, 2 * SHA1_LENGTH);
+        for(i = 0; i < 8; i++){
+            memset(mid_content, 0, SEC_LENGTH + 1);
+            memcpy(mid_content, generated_content + (SEC_LENGTH * i), SEC_LENGTH);
+            encode_bch(bch, mid_content, SEC_LENGTH, mid_bch);
+            memcpy(bch_ori + ((CONFIG_T * CONFIG_M / 8) * i), mid_bch, CONFIG_T * CONFIG_M / 8);
+
+        }
+        ByteToHexStr(bch_ori, bch_result, BCH_LENGTH);
+        bch_result[2 * BCH_LENGTH] = '\0';
+        mid_str = bch_result;
+        //std::cout << mid_str << std::endl;
+        if(list_bch.find(mid_str) == list_bch.end()){
+            bch_unique_count++;
+            list_bch.insert(mid_str);
+        }
+
         encode_bch(bch, chk_cont, READ_LENGTH, bch_4KB);
         ByteToHexStr(bch_4KB, bch_4KB_result, CONFIG_T * CONFIG_M / 8);
         bch_4KB_result[2 * (CONFIG_T * CONFIG_M / 8)] = '\0';
         mid_str = bch_4KB_result;
+        std::cout<< mid_str << std::endl;
         if(list_bch_4KB.find(mid_str) == list_bch_4KB.end()){
             bch_4KB_unique_count++;
             list_bch_4KB.insert(mid_str);
@@ -218,6 +225,12 @@ int main(int argc, char *argv[]) {
     //std::cout << "Please input the enter to start the test! " << std::endl;
     //getchar();
 
+    std::cout << "The dedupe rate of SHA1 is " <<  (total_count - sha1_unique_count) * 100.0 / total_count <<"%"<<std::endl;
+    std::cout << "The dedupe rate of 4KB bch is " <<  (total_count - bch_4KB_unique_count) * 100.0 / total_count <<"%"<<std::endl;
+    std::cout << "The dedupe rate of SSD bch is " <<  (total_count - bch_unique_count) * 100.0 / total_count <<"%"<<std::endl;
+    std::cout << total_count << std::endl;
+    std::cout << sha1_unique_count << std::endl;
+    std::cout << bch_unique_count << std::endl;
     return 0;
 }
 
